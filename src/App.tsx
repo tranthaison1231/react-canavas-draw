@@ -1,19 +1,15 @@
 import { useCallback, useRef, useState } from 'react';
-import './App.css';
 
 function App() {
   const [isDrawing, setIsDrawing] = useState(false)
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
 
   const setCanvasRef = useCallback((element: HTMLCanvasElement) => {
-    element.width = window.innerWidth * 2;
-    element.height = window.innerHeight * 2;
-    element.style.width = `${window.innerWidth}px`;
-    element.style.height = `${window.innerHeight}px`;
+    element.width = window.innerWidth;
+    element.height = window.innerHeight;
 
     const context = element.getContext("2d")
     if(context) {
-      context.scale(2, 2);
       context.lineCap = "round";
       context.strokeStyle = "black";
       context.lineWidth = 5;
@@ -45,7 +41,7 @@ function App() {
   const clearCanvas = () => {
     if(contextRef.current){
       contextRef.current.fillStyle = "white"
-      contextRef.current.fillRect(0, 0, window.innerWidth * 2, window.innerHeight * 2);
+      contextRef.current.fillRect(0, 0, window.innerWidth, window.innerHeight);
     }
   }
 
