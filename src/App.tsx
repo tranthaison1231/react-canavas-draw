@@ -1,17 +1,21 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { io } from 'socket.io-client';
+
+export const socket = io('ws://localhost:1337');
 
 function App() {
-  const [isDrawing, setIsDrawing] = useState(false)
+  const [isConnected, setIsConnected] = useState(socket.connected);
+  const [isDrawing, setIsDrawing] = useState(false);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
 
   const setCanvasRef = useCallback((element: HTMLCanvasElement) => {
     element.width = window.innerWidth;
     element.height = window.innerHeight;
 
-    const context = element.getContext("2d")
-    if(context) {
-      context.lineCap = "round";
-      context.strokeStyle = "black";
+    const context = element.getContext('2d');
+    if (context) {
+      context.lineCap = 'round';
+      context.strokeStyle = 'black';
       context.lineWidth = 5;
       contextRef.current = context;
     }
@@ -31,6 +35,10 @@ function App() {
 
   const draw = ({ nativeEvent }: React.MouseEvent<HTMLCanvasElement, MouseEvent>) => {
     if (!isDrawing) return;
+    socket.emit('send-draw', {
+      x: nativeEvent.offsetX,
+      y: nativeEvent.offsetY,
+    });
     const { offsetX, offsetY } = nativeEvent;
     if (contextRef.current) {
       contextRef.current.lineTo(offsetX, offsetY);
@@ -39,23 +47,50 @@ function App() {
   };
 
   const clearCanvas = () => {
-    if(contextRef.current){
-      contextRef.current.fillStyle = "white"
+    if (contextRef.current) {
+      contextRef.current.fillStyle = 'white';
       contextRef.current.fillRect(0, 0, window.innerWidth, window.innerHeight);
     }
-  }
+  };
+
+  useEffect(() => {
+    function onConnect() {
+      setIsConnected(true);
+    }
+
+    function onDisconnect() {
+      setIsConnected(false);
+    }
+
+    function onDraw(nativeEvent: any) {
+      const { x, y } = nativeEvent;
+      if (contextRef.current) {
+        contextRef.current.lineTo(x, y);
+        contextRef.current.stroke();
+      }
+    }
+
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('draw', onDraw);
+
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('draw', onDraw);
+    };
+  }, []);
 
   return (
     <>
-      <canvas
-        onMouseDown={startDrawing}
-        onMouseUp={finishDrawing}
-        onMouseMove={draw}
-        ref={setCanvasRef}
-      />
+      <button onClick={() => socket.emit('join', {
+        name: 'room1'
+      })}>Join Room</button>
+      {isConnected ? <p>Connected</p> : <p>Not connected</p>}
+      <canvas onMouseDown={startDrawing} onMouseUp={finishDrawing} onMouseMove={draw} ref={setCanvasRef} />
       <button onClick={clearCanvas}>Clear</button>
     </>
-  )
+  );
 }
 
-export default App
+export default App;
